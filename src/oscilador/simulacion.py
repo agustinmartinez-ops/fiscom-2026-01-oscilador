@@ -35,7 +35,20 @@ def newton_raphson(G, derivada_G, z0: float, tolerancia: float = 1e-12, max_iter
     que no convergió.
     """
 
-    raise NotImplementedError("completar Newton–Raphson")
+    iter = 0
+    while iter < max_iter:
+        Gz = G(z0)
+        if abs(Gz) < tolerancia:
+            return z0
+        dGz = derivada_G(z0)
+        if dGz == 0:
+            raise ArithmeticError("derivada nula")
+        z0 -= Gz / dGz
+        iter += 1
+
+    if abs(G(z0)) < tolerancia:
+        return z0
+    raise ArithmeticError("Newton-Raphson no convergió")
 
 
 def integrar_euler_explicito(
@@ -55,7 +68,16 @@ def integrar_euler_explicito(
     condición inicial, por lo que tienen ``pasos + 1`` elementos.
     """
 
-    raise NotImplementedError("completar Euler explícito")
+    tiempos = np.linspace(0, dt * pasos, pasos + 1)
+    estados = np.empty((pasos + 1, 2))
+    estados[0] = estado_inicial
+
+    for i in range(pasos):
+        estados[i + 1] = estados[i] + dt * np.array(
+            [estados[i, 1], aceleracion(estados[i, 0])]
+        )
+
+    return tiempos, estados
 
 
 def integrar_euler_implicito(
@@ -83,7 +105,30 @@ def integrar_euler_implicito(
     Devuelve tiempos y estados, con ``pasos + 1`` elementos cada uno.
     """
 
-    raise NotImplementedError("completar Euler implícito")
+    tiempos = np.linspace(0, dt * pasos, pasos + 1)
+    estados = np.empty((pasos + 1, 2))
+    estados[0] = estado_inicial
+
+    for i in range(pasos):
+        x_n, v_n = estados[i]
+        a_n = aceleracion(x_n)
+
+        # Definir G(z) = z - x_n - dt * v_n - dt^2 * a(z)
+        def G(z):
+            return z - x_n - dt * v_n - dt**2 * aceleracion(z)
+
+        # Definir G'(z) = 1 - dt^2 * a'(z)
+        def derivada_G(z):
+            return 1 - dt**2 * derivada_aceleracion(z)
+
+        # Resolver G(z) = 0 con Newton-Raphson
+        z0 = x_n
+        x_np1 = newton_raphson(G, derivada_G, z0, tolerancia=1e-10, max_iter=100)
+        v_np1 = v_n + dt * aceleracion(x_np1)
+
+        estados[i + 1] = x_np1, v_np1
+
+    return tiempos, estados
 
 
 def solucion_exacta(tiempos: np.ndarray, estado_inicial: np.ndarray) -> np.ndarray:
